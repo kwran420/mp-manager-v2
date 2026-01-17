@@ -170,7 +170,137 @@ npm run build    # TypeScript + Vite bundling
 npm run start    # Serves from dist/
 ```
 
-### Code Organization Rules
+---
+
+## Deployment & Infrastructure
+
+### Docker Strategy
+
+**Single-container approach**: Frontend (React) + Backend (Hono) in one Docker image, served on port 3000.
+
+**Dockerfile** (multi-stage):
+```dockerfile
+# Stage 1: Build client
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# Stage 2: Production image
+FROM node:20-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
+RUN mkdir -p /app/data /app/backups
+EXPOSE 3000
+CMD ["node", "dist/server/index.js"]
+```
+
+**docker-compose.yml** (development):
+```yaml
+version: '3.8'
+services:
+  mp-manager:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+      - ./backups:/app/backups
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=file:/app/data/mp-manager.db
+```
+
+**Build & Run**:
+```bash
+docker build -t mp-manager:latest .
+docker run -p 3000:3000 -v $(pwd)/data:/app/data mp-manager:latest
+```
+
+### Database Setup
+
+**Current (MVP)**: In-memory data store (Zustand) — no persistence to disk.
+
+**Phase 2 (Persistence)**: SQLite via Drizzle ORM.
+- File: `/app/data/mp-manager.db` (persisted to volume)
+- Schema: MPs, Teams, Personnel, Assignments, AuditLog
+- No server needed (runs in same Node process)
+
+**Phase 3 (Auth + Multi-user)**: better-auth with Users table
+
+**Environment Variables** (per stage):
+```env
+# Development
+DATABASE_URL=file:./data/mp-manager.db
+NODE_ENV=development
+VITE_API_URL=http://localhost:3000
+
+# Production (Unraid)
+DATABASE_URL=file:/app/data/mp-manager.db
+NODE_ENV=production
+APP_URL=https://mp.yourdomain.com
+```
+
+### Unraid Deployment
+
+**Goal**: Self-hosted on Unraid with external access via Traefik reverse proxy.
+
+**Steps** (Phase 8+):
+
+1. **Push image to registry**:
+   ```bash
+   docker tag mp-manager:latest ghcr.io/your-username/mp-manager:latest
+   docker push ghcr.io/your-username/mp-manager:latest
+   ```
+
+2. **Deploy on Unraid**:
+   - Create container from `ghcr.io/your-username/mp-manager:latest`
+   - Volumes: `/app/data` → `/mnt/user/mp-manager/data` (Unraid share)
+   - Port: 3000 → 3000
+   - Labels for Traefik (auto HTTPS, domain routing)
+
+3. **Traefik configuration**:
+   ```yaml
+   labels:
+     - "traefik.enable=true"
+     - "traefik.http.routers.mp-manager.rule=Host(`mp.yourdomain.com`)"
+     - "traefik.http.routers.mp-manager.tls.certresolver=letsencrypt"
+     - "traefik.http.services.mp-manager.loadbalancer.server.port=3000"
+   ```
+
+4. **Data persistence**:
+   - Unraid `/mnt/user/mp-manager/data` mapped to container `/app/data`
+   - Automatic backups via Unraid's share backup feature
+   - SQLite DB in `/app/data/mp-manager.db`
+
+### Build Matrix
+
+| Stage | Environment | Docker Image | Database | Auth |
+|-------|-------------|--------------|----------|------|
+| **Dev** | localhost:5173 + 3000 | None (npm run dev) | In-memory | None |
+| **Staging** | Docker local | `mp-manager:dev` | SQLite file | None |
+| **Production** | Unraid Traefik | `ghcr.io/.../mp-manager:latest` | SQLite file | better-auth |
+
+### Production Checklist
+
+Before deploying to Unraid:
+- [ ] `npm run build` passes (TypeScript strict mode)
+- [ ] `docker build .` succeeds
+- [ ] All env vars documented in `.env.example`
+- [ ] Database schema migrated (if applicable)
+- [ ] CORS configured for production domain
+- [ ] JWT secrets generated (Phase 3+)
+- [ ] Error logging configured
+- [ ] Backups strategy documented
+
+---
+
+## Code Organization Rules
 
 1. **Components**: One per file, named `ComponentName.tsx`
 2. **State**: Use Zustand stores in `stores/` — never useState for shared data
