@@ -2,6 +2,9 @@ import { useMpStore } from '@/stores/useMpStore';
 import { useTeamStore } from '@/stores/useTeamStore';
 import { useAssignmentStore } from '@/stores/useAssignmentStore';
 import { useShipStore } from '@/stores/useShipStore';
+import { GanttChart } from '@/components/gantt';
+import { MaintenancePeriod } from '@/types';
+import { useState } from 'react';
 
 export function Dashboard() {
   const mps = useMpStore((s) => s.mps);
@@ -83,15 +86,8 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Gantt Chart Placeholder */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Gantt Chart (Coming Soon)
-        </h2>
-        <div className="mt-4 h-64 flex items-center justify-center rounded bg-gray-50 dark:bg-gray-800">
-          <p className="text-gray-400">Gantt visualization will be built in Phase 3</p>
-        </div>
-      </div>
+      {/* Gantt Chart */}
+      <GanttChart onMPClick={(mp) => console.log('Clicked MP:', mp.id)} />
     </div>
   );
 }
