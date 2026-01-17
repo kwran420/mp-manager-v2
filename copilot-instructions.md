@@ -565,6 +565,93 @@ set(s => ({ ...s, items: [...s.items, newItem] }))
 
 ---
 
+## React UI/UX Best Practices (2025)
+
+As senior developers, mastering UI/UX principles is essential for creating delightful, fast, and inclusive experiences. These 10 practices are battle-tested and directly applicable to MP Manager V2:
+
+### 1. Use Design Systems Like MUI or Radix UI
+Design consistency is key. Leverage open-source design systems like MUI, Chakra UI, or Radix UI to build scalable, accessible components faster.
+
+**For MP Manager V2**: We're using Tailwind + custom components. Wrap Tailwind components in our own abstraction layer (e.g., `components/ui/`) for flexibility without vendor lock-in.
+
+### 2. Apply Atomic Design Principles
+Break UIs into atoms, molecules, organisms to create reusable building blocks. This modular approach keeps your codebase clean and testable.
+
+**For MP Manager V2**: 
+- **Atoms**: UI primitives in `components/ui/` (Button, Input, Card)
+- **Molecules**: Combined components like `components/gantt/GanttBar.tsx`
+- **Organisms**: Complex features like `components/gantt/GanttChart.tsx`
+
+### 3. Optimize Renders with Memoization & React Profiler
+Use `React.memo`, `useMemo`, and `useCallback` only when necessary. React Profiler helps find real bottlenecks, not imagined ones.
+
+**For MP Manager V2**: 
+- Memoize `GanttBar` component (renders in large lists)
+- Use `useMemo` for collision detection calculations
+- Profile before optimizing — measure actual performance gains with React DevTools
+
+### 4. Build Reusable Custom Hooks
+Custom hooks help isolate logic (e.g., form validation, API calls) and reduce repetitive code.
+
+**For MP Manager V2** (examples in `hooks/`):
+- `useMPs()` — Fetch + manage MP data from API
+- `useTeams()` — Fetch + manage teams
+- `useGanttSelection()` — Track selected MP for editing
+- `useLocalStorage()` — Persist UI state (scroll position, filters)
+
+### 5. Design with Accessibility (a11y) from Day 1
+Use tools like `eslint-plugin-jsx-a11y`, keyboard navigation, semantic HTML, and ARIA roles.
+
+**For MP Manager V2**:
+- All buttons + modals support keyboard navigation
+- Use semantic HTML: `<button>`, `<form>`, `<nav>`, not just `<div>`
+- Add ARIA labels to complex components (Gantt chart lanes, buttons)
+- Test with screen readers during Phase 7 (Polish)
+
+### 6. Prefer Controlled Components in Forms
+It makes state management and validations predictable—especially with tools like `react-hook-form` or Formik.
+
+**For MP Manager V2**:
+- `MPEditModal.tsx` uses Zod validation + controlled inputs
+- Form state synchronized with Zustand store
+- Real-time validation feedback (error messages below inputs)
+
+### 7. Think API-First
+Structure your frontend to consume APIs cleanly. Use Axios or fetch wrapper to manage async logic and caching properly.
+
+**For MP Manager V2**:
+- All API calls go through `lib/api.ts` wrapper (enables error handling, request deduplication, caching)
+- Zustand stores act as normalized cache
+- Type-safe API responses via Zod validation
+
+### 8. Add Micro-Interactions
+Subtle animations with Framer Motion or React Spring enhance UX dramatically. Focus on transitions, hover states, and layout animations.
+
+**For MP Manager V2** (Phase 7 Polish):
+- Framer Motion for modal animations (fade in/out)
+- Loading skeletons during data fetch
+- Hover states on Gantt bars (highlight, show details)
+- Smooth transitions for theme changes (dark/light mode)
+
+### 9. Use Component-Driven Testing (CDT)
+Tools like Storybook, Jest, and Testing Library improve UI reliability. Test components in isolation first, then integrate.
+
+**For MP Manager V2** (Phase 9+):
+- Storybook for component gallery (Button, Modal, GanttBar stories)
+- Jest + React Testing Library for unit tests
+- Test edge cases: empty states, loading, errors, collisions
+
+### 10. Measure UX with Real Metrics
+Use tools like Lighthouse, Web Vitals, and Sentry to track performance, loading speed, and actual user interaction pain points.
+
+**For MP Manager V2** (Phase 10+):
+- Lighthouse audits (target: 90+ on all metrics)
+- Web Vitals tracking (LCP, FID, CLS)
+- Sentry error tracking in production
+- Monitor slow API responses, empty states, form validation errors
+
+---
+
 ## Resources
 
 - **React**: https://react.dev
@@ -573,6 +660,7 @@ set(s => ({ ...s, items: [...s.items, newItem] }))
 - **Tailwind**: https://tailwindcss.com
 - **Zod**: https://zod.dev
 - **TypeScript**: https://www.typescriptlang.org
+- **React UI/UX**: https://react.dev/learn/react-essentials (component design patterns)
 
 ---
 
