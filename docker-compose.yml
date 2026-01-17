@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  mp-manager:
+    build: .
+    container_name: mp-manager
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persistent SQLite database
+      - ./data:/app/data
+      # Backup directory
+      - ./backups:/app/backups
+      # Development source code (optional, for live reload)
+      # - ./src:/app/src
+      # - ./server:/app/server
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=file:/app/data/mp-manager.db
+      - PORT=3000
+    # Auto-restart on failure
+    restart: unless-stopped
+    # Healthcheck
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s

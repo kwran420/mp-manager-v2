@@ -1,26 +1,26 @@
 # MP Manager V2 — Copilot Development Instructions
 
 **Version**: v0.1.0 | **Date**: 2026-01-17 | **Status**: Scaffolding Phase
-
+MP_MANAGER_V2_PLAN.md has the full concept and should be referenced often so we dont lose our way
 ---
 
 ## Project Overview
 
 **MP Manager V2** is a complete rewrite of the MP Manager application — a browser-based Gantt chart scheduling tool for managing maintenance periods (MPs) across multiple naval ships and teams.
 
-**Stack**: React 18 + Hono + Tailwind CSS + Zustand (MVP-focused, no DB layer yet)
+**Stack**: React 18 + Hono + Tailwind CSS + Zustand + Drizzle ORM + SQLite (database-first, Unraid-ready)
 
-**Core Goal**: Build an intuitive, real-time scheduling interface with Gantt visualization, team utilization metrics, and PDF export.
+**Core Goal**: Build an intuitive, real-time scheduling interface with Gantt visualization, team utilization metrics, and PDF export — with persistent SQLite backend from day 1, deployable immediately to Unraid.
 
 ---
 
 ## Current Status
 
 ✅ **Repository Created**: https://github.com/kwran420/mp-manager-v2
-✅ **Dependencies Installed**: 182 packages (React, Vite, Hono, Tailwind, Zustand, Zod, Chart.js)
+✅ **Architecture Decision**: Database-first (SQLite + Drizzle), Unraid-ready from day 1
 ✅ **Git Initialized**: First commit + `.gitignore` configured
 
-⏳ **Next**: Build Gantt chart component and core data structures
+⏳ **Next**: Add database dependencies (Drizzle ORM, better-sqlite3), build schema, then Phase 1
 
 ---
 
@@ -222,16 +222,25 @@ docker build -t mp-manager:latest .
 docker run -p 3000:3000 -v $(pwd)/data:/app/data mp-manager:latest
 ```
 
-### Database Setup
+### Database Setup (SQLite-First Architecture)
 
-**Current (MVP)**: In-memory data store (Zustand) — no persistence to disk.
+**Persistent from Day 1**: SQLite via Drizzle ORM + better-sqlite3 (zero network overhead)
+- **File**: `/app/data/mp-manager.db` (persisted to Docker volume)
+- **Schema**: MPs, Teams, Personnel, Assignments, AuditLog
+- **Zero External Deps**: No separate database server (embedded in Node process)
+- **Azure-Compatible**: Portable; can migrate to PostgreSQL in future (Drizzle adapts)
 
-**Phase 2 (Persistence)**: SQLite via Drizzle ORM.
-- File: `/app/data/mp-manager.db` (persisted to volume)
-- Schema: MPs, Teams, Personnel, Assignments, AuditLog
-- No server needed (runs in same Node process)
+**Database Tables** (implemented in Phase 1a):
+```sql
+ships (id, name, code, created_at)
+mps (id, ship_id, mp_number, year, type, status, start_date, end_date, planning_start, closeout_end, has_pre_planning, created_at)
+teams (id, name, created_at)
+personnel (id, team_id, name, rank, role, created_at)
+assignments (id, mp_id, team_id, weeks_allocated, status, created_at)
+audit_log (id, action, entity_type, entity_id, user, timestamp)
+```
 
-**Phase 3 (Auth + Multi-user)**: better-auth with Users table
+**Unraid Deployment**: Docker handles setup — database directory mounted as volume for persistence across restarts.
 
 **Environment Variables** (per stage):
 ```env
@@ -240,7 +249,7 @@ DATABASE_URL=file:./data/mp-manager.db
 NODE_ENV=development
 VITE_API_URL=http://localhost:3000
 
-# Production (Unraid)
+# Production (Unraid Docker)
 DATABASE_URL=file:/app/data/mp-manager.db
 NODE_ENV=production
 APP_URL=https://mp.yourdomain.com
@@ -324,22 +333,40 @@ Before deploying to Unraid:
 
 ## Implementation Phases
 
-### Phase 1: Core UI Shell (Days 1-3)
+### Phase 1a: Database + Schema (Days 1-2)
+- [ ] Create `server/db/db.ts` — SQLite initialization with Drizzle ORM
+- [ ] Define Drizzle schema (ships, mps, teams, personnel, assignments, auditLog)
+- [ ] Create database migrations strategy (auto-init on first run)
+- [ ] Add database seeding for test data (sample ships, teams, MPs)
+- [ ] Create `server/db/queries.ts` — Type-safe query builders
+
+**Deliverable**: Persistent SQLite database with Drizzle schema, auto-initialized
+
+### Phase 1b: Core UI Shell (Days 2-3)
 - [ ] Dark mode toggle + Tailwind setup
 - [ ] Header, Sidebar, MainLayout
 - [ ] Basic routing (Dashboard, Teams, Settings pages)
-- [ ] Mock data structures
+- [ ] Connect Zustand stores to database queries
 
-**Deliverable**: Clickable shell with navigation
+**Deliverable**: Clickable shell connected to database backend
 
-### Phase 2: Data Layer (Days 4-5)
-- [ ] Define MP, Team, Assignment types in `shared/types.ts`
-- [ ] Create Zustand stores (mpStore, teamStore, assignmentStore)
-- [ ] Build in-memory data service (no server yet)
-- [ ] Create test data fixtures
+### Phase 2: Server API Routes (Days 4-5)
+- [ ] Hono API routes: GET/POST `/api/mps`, `/api/teams`
+- [ ] Database persistence (Drizzle ORM queries)
+- [ ] Error handling + validation (Zod schemas)
+- [ ] API client abstraction in `src/lib/api.ts`
 
-**Deliverable**: State management working end-to-end
+**Deliverable**: Frontend talking to persistent backend
 
+### Phase 3: Gantt Chart Core (Days 6-10) ⭐
+- [ ] GanttTimeline: Week/month headers
+- [ ] GanttLane: Team rows with styling
+- [ ] GanttBar: Single MP bar component
+- [ ] Collision detection + lane stacking algorithm
+- [ ] Click-to-edit modal integration
+- [ ] Scroll + zoom controls
+
+**Deliverable**: Functional Gantt view with draggable bars
 ### Phase 3: Gantt Chart Core (Days 6-10) ⭐
 - [ ] GanttTimeline: Week/month headers
 - [ ] GanttLane: Team rows with styling
@@ -384,13 +411,14 @@ Before deploying to Unraid:
 
 **Deliverable**: Production-ready UI
 
-### Phase 8: Backend + Persistence (Days 21-25)
-- [ ] Hono API routes (GET/POST /api/mps, /api/teams)
-- [ ] In-memory data service → Drizzle ORM + SQLite
-- [ ] JWT authentication (better-auth setup)
-- [ ] API client error handling
+### Phase 8: Authentication (Days 21-25)
+- [ ] JWT token generation and validation
+- [ ] better-auth setup (email + password auth)
+- [ ] Login/register/forgot-password flows
+- [ ] Role-based access control (admin/viewer)
+- [ ] Session management
 
-**Deliverable**: Persistent, authenticated backend
+**Deliverable**: Authenticated, multi-user application
 
 ---
 
